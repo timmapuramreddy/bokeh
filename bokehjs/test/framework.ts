@@ -1,6 +1,7 @@
 import {LayoutDOM, LayoutDOMView} from "models/layouts/layout_dom"
 import * as plotting from "api/plotting"
 import {div} from "core/dom"
+import {isString} from "core/util/types"
 
 export type Suite = {description: string, suites: Suite[], tests: Test[]}
 export type Test = {description: string, fn: () => Promise<void>, view?: LayoutDOMView, el?: HTMLElement}
@@ -23,20 +24,32 @@ export function it(description: string, fn: () => Promise<void>): void {
   stack[0].tests.push({description, fn})
 }
 
-export async function run_suite(suite: Suite) {
+export async function run_suite(suite: Suite, grep?: string | RegExp) {
   for (const sub_suite of suite.suites) {
-    await run_suite(sub_suite)
+    await run_suite(sub_suite, grep)
   }
 
   for (const test of suite.tests) {
+    const {fn, description} = test
+
+    if (grep != null) {
+      if (isString(grep)) {
+        if (!description.includes(grep))
+          continue
+      } else {
+        if (description.search(grep) == -1)
+          continue
+      }
+    }
+
     current_test = test
-    await test.fn()
+    await fn()
     current_test = null
   }
 }
 
-export async function run_all() {
-  await run_suite(top_level)
+export async function run_all(grep?: string | RegExp) {
+  await run_suite(top_level, grep)
 }
 
 //export type TestResult = {state: any, bbox:
